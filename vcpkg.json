@@ -1,0 +1,20 @@
+{
+  "dependencies": [
+    "boost-container-hash",
+    "boost-dynamic-bitset",
+    "boost-process",
+    "fontconfig",
+    {
+      "name": "freetype",
+      "features": [
+        "subpixel-rendering"
+      ]
+    },
+    "glfw3",
+    "glm",
+    "libx11",
+    "linmath",
+    "nlohmann-json",
+    "harfbuzz"
+  ]
+}
