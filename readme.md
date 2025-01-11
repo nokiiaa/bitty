@@ -8,7 +8,7 @@ It mainly depends on GLFW, GLM, Nlohmann JSON, Freetype, Fontconfig, and some Bo
 Here's what it looks like on my machine right now, running neovim:
 ![screenshot](images/image.png)
 
-With a few minor visual artifacts and bugs here and there and a lack of support for emojis or resizing the window, it's currently at a stage where it's generally functional for most use cases but not necessarily usable as a daily driver.
+With a few minor visual artifacts and bugs here and there and a lack of support for emojis, it's currently at a stage where it's generally functional for most use cases but not necessarily usable as a daily driver.
 
 I implement ANSI escape codes as I need them. Around 33 parsing rules have been implemented to that end, powered by a DFA for convenience.
 
