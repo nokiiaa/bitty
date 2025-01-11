@@ -53,6 +53,7 @@ void Terminal::SwitchToNormalBuffer() {
     buf_ = normal_buf_;
 
     SetCursor(normal_cursor_x_, normal_cursor_y_);
+    buf_->MarkAllAsDirty();
   }
 }
 
@@ -88,8 +89,9 @@ bool Terminal::IsUserScrolledUp() {
 
 void Terminal::ReportMouseEvent(u32 btn, bool is_down, bool is_motion, u32 mods,
                                 u32 x, u32 y) {
-  (void) x; (void) y;
-  
+  (void)x;
+  (void)y;
+
   if (mouse_tracking_format_ == MouseTrackingFormat::kX10Compat && !btn) return;
 
   char mouse_button_encoded;
@@ -437,8 +439,7 @@ void Terminal::SetPrivateMode(u32 mode, bool flag) {
                          : mode == 1003 ? MouseTrackingMode::kAllEvents
                                         : MouseTrackingMode::kNoTracking);
       } else
-        mouse_mode_ = mode == 1000 ? MouseTrackingMode::kNoTracking
-                                   : MouseTrackingMode::kOnlyButtonEvents;
+        mouse_mode_ = MouseTrackingMode::kNoTracking;
       break;
     case 1005:
       mouse_tracking_format_ =

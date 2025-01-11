@@ -53,10 +53,14 @@ static void WindowSizeChanged(GLFWwindow *window, int new_width,
   (void)window;
   EventQueue::Get().Enqueue(EventWindowResized{new_width, new_height});
 }
+
+static void WindowPosChanged(GLFWwindow *, int, int) {}
+
 }  // namespace bitty::callbacks
 
 using namespace bitty;
 
+#ifdef __linux__
 // clang-format off
 #define GLFW_EXPOSE_NATIVE_X11
 #include <GLFW/glfw3native.h>
@@ -65,7 +69,7 @@ using namespace bitty;
 #include <X11/Xatom.h>
 // clang-format on
 
-bool BlurX11Window(GLFWwindow *window, int blur_radius) {
+bool BlurWindow(GLFWwindow *window, int blur_radius) {
   Display *display = glfwGetX11Display();
   Window window_handle = glfwGetX11Window(window);
 
@@ -85,6 +89,9 @@ bool BlurX11Window(GLFWwindow *window, int blur_radius) {
 
   return false;
 }
+#else
+bool BlurWindow(GLFWwindow *window, int blur_radius) { return false; }
+#endif
 
 int main() {
   GLFWwindow *window;
@@ -98,7 +105,8 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
   glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, 1);
 
-  window = glfwCreateWindow(640, 480, "terminal", NULL, NULL);
+  window = glfwCreateWindow(640, 480, "bitty", NULL, NULL);
+  
   if (!window) {
     glfwTerminate();
     exit(EXIT_FAILURE);
@@ -110,7 +118,8 @@ int main() {
   glfwSetKeyCallback(window, callbacks::KeyReceived);
   glfwSetCharCallback(window, callbacks::CharReceived);
   glfwSetWindowSizeCallback(window, callbacks::WindowSizeChanged);
-  BlurX11Window(window, 2);
+  glfwSetWindowPosCallback(window, callbacks::WindowPosChanged);
+  BlurWindow(window, 2);
 
   glfwMakeContextCurrent(window);
   gladLoadGL(glfwGetProcAddress);
@@ -121,9 +130,11 @@ int main() {
   TermRenderer renderer;
   bool needs_redraw = true;
 
-  int pty_id = Terminal::Create("/bin/zsh");
+  int pty_id = Terminal::Create(Config::Get().ShellPath());
 
   std::shared_ptr terminal{Terminal::Get(pty_id).value_or(nullptr)};
+
+  bool set_win_size = true;
 
   while (!glfwWindowShouldClose(window)) {
     int width, height;
@@ -137,8 +148,11 @@ int main() {
 
       if (auto buf = terminal->CurrentBuffer()) {
         auto [w, h] = std::tuple{buf->ScreenWidth(), buf->ScreenHeight()};
-        glfwSetWindowSize(window, w, h);
-        renderer.Render(*terminal, w, h);
+        if (set_win_size) {
+          glfwSetWindowSize(window, w, h);
+          set_win_size = false;
+        }
+        renderer.Render(*terminal, width, height);
       }
 
       glfwSwapBuffers(window);
@@ -252,6 +266,12 @@ int main() {
 
         [&](EventWindowResized resized) mutable {
           (void)resized;
+          u32 cw = GlobalCellWidthPx();
+          u32 ch = GlobalCellHeightPx();
+          u32 nw = (u32)resized.new_width / cw;
+          u32 nh = (u32)resized.new_height / ch;
+          terminal->SetWindowSize(nw, nh);
+          glfwSetWindowSize(window, nw * cw, nh * ch);
           needs_redraw = true;
         }});
   }

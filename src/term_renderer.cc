@@ -62,6 +62,9 @@ TermRenderer::TermRenderer()
 }
 
 bool TermRenderer::Render(Terminal &term, u32 window_width, u32 window_height) {
+  auto ch_w = GlobalCellWidthPx();
+  auto ch_h = GlobalCellHeightPx();
+
   std::shared_ptr<CellBuffer> buf = term.CurrentBuffer();
 
   size_t w = buf->Width(), h = buf->VisibleHeight();
@@ -70,23 +73,19 @@ bool TermRenderer::Render(Terminal &term, u32 window_width, u32 window_height) {
   ibo_data_ = std::vector<u32>();
   ibo_data_.reserve(buf_wh * 6);
 
-  if (vbo_data_.size() < buf_wh && ibo_data_.size() < buf_wh)
+  if (vbo_data_.size() < buf_wh * 4)
     vbo_data_ = std::vector<VertexBufElement>(buf_wh * 4);
 
-  glm::vec2 window_size(window_width, window_height);
+  glm::dvec2 window_size(window_width, window_height);
 
-  auto id = glm::mat4(1);
+  auto id = glm::dmat4(1);
 
-  glm::mat4 xy_to_normalized =
-      glm::scale(id, glm::vec3(1, -1, 1)) *
-      glm::scale(id, glm::vec3(2.f / window_size, 1)) *
-      glm::translate(id, glm::vec3(-window_size / 2.f, 0));
+  glm::dmat4 xy_to_normalized = glm::scale(id, glm::dvec3(1, -1, 1)) *
+                                glm::translate(id, glm::dvec3(-1, -1, 0)) *
+                                glm::scale(id, glm::dvec3(2. / window_size, 1));
 
   auto wh =
       glm::vec2(charset_.TexWidthInPixels(), charset_.TexHeightInPixels());
-
-  auto ch_w = GlobalCellWidthPx();
-  auto ch_h = GlobalCellHeightPx();
 
   auto opacity_vec = glm::vec4(1, 1, 1, bitty::Config::Get().Opacity());
 
@@ -128,13 +127,13 @@ bool TermRenderer::Render(Terminal &term, u32 window_width, u32 window_height) {
              {2, glm::vec2(sx + ch_w, sy + ch_h), br_gl},
              {3, glm::vec2(sx + ch_w, sy), tr_gl},
          }) {
-      auto vertex_pos = xy_to_normalized * glm::vec4(xy, 0.0, 1.0);
+      auto vertex_pos = xy_to_normalized * glm::dvec4(xy, 0.0, 1.0);
 
       bool is_default_bg_color = chr.background.r == 0 &&
                                  chr.background.g == 0 && chr.background.b == 0;
 
       vbo_data_[i + vert_base] = VertexBufElement{
-          .position = vertex_pos,
+          .position = (glm::vec4)vertex_pos,
           .uv = uv,
           .foreground = chr.foreground.AsVec4(),
           .background = chr.background.AsVec4() *
@@ -170,8 +169,9 @@ bool TermRenderer::Render(Terminal &term, u32 window_width, u32 window_height) {
                vbo_data_.data(), GL_DYNAMIC_DRAW);
 
   buf_program_.Use();
-  buf_program_.SetUniform("transform", xy_to_normalized * buf->GetTransform() *
-                                           glm::inverse(xy_to_normalized));
+  buf_program_.SetUniform("transform",
+                          glm::mat4(xy_to_normalized * buf->GetTransform() *
+                                    glm::inverse(xy_to_normalized)));
 
   buf_program_.SetUniform<GLint>("cell_width", ch_w);
 

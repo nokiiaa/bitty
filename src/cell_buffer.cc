@@ -1,9 +1,11 @@
 #include "cell_buffer.hh"
 
 #include <boost/dynamic_bitset/dynamic_bitset.hpp>
+#include <stdexcept>
 
 #include "cell.hh"
 #include "font_renderer.hh"
+#include "util.hh"
 
 namespace bitty {
 
@@ -11,11 +13,16 @@ bool CellBuffer::UserScrolledUp() const {
   return UserScrollInCells() != ScrollInCells();
 }
 
+  void CellBuffer::MarkAllAsDirty() {
+  dirty_mask_.set();
+
+  }
+
 void CellBuffer::UserScrollByNPixels(i32 n) {
   user_scroll_in_pixels_ =
       std::min(i32(HistorySizeInCells() * GlobalCellHeightPx()),
                std::max(0, user_scroll_in_pixels_ + n));
-  dirty_mask_.set(0, dirty_mask_.size(), 1);
+  MarkAllAsDirty();
 }
 
 void CellBuffer::ScrollByNCells(i32 n, bool allow_buf_expansion) {
@@ -32,23 +39,20 @@ void CellBuffer::ScrollByNCells(i32 n, bool allow_buf_expansion) {
   if (added_cells != 0) {
     height_ += added_cells;
 
-    data_.resize(width_ * height_);
+    data_.resize(pitch_ * height_);
   }
 
-  if (!UserScrolledUp())
-    UserScrollByNPixels(n * (i32)GlobalCellHeightPx());
+  if (!UserScrolledUp()) UserScrollByNPixels(n * (i32)GlobalCellHeightPx());
 
   scroll_in_cells_ = new_scroll_in_cells;
 }
 
 void CellBuffer::ResetUserScroll() {
   user_scroll_in_pixels_ = scroll_in_cells_ * GlobalCellHeightPx();
-  dirty_mask_.set(0, dirty_mask_.size(), 1);
+  MarkAllAsDirty();
 }
 
-void CellBuffer::ResetScroll() {
-  scroll_in_cells_ = HistorySizeInCells();
-}
+void CellBuffer::ResetScroll() { scroll_in_cells_ = HistorySizeInCells(); }
 
 bool CellBuffer::CopyArea(Rect<u32> src, Rect<u32> dest) {
   if (!src.IsValid() || !dest.IsValid()) return false;
@@ -59,11 +63,9 @@ bool CellBuffer::CopyArea(Rect<u32> src, Rect<u32> dest) {
   src.CopyWidthAndHeight(dest);
   src.Clamp(buf_rect);
 
-  size_t offset = width_ * ScrollInCells();
+  size_t offset = pitch_ * ScrollInCells();
 
   ColoredCell *base = data_.data() + offset;
-
-  u32 buf_w = Width();
 
   u32 w = src.Width(), h = src.Height();
   size_t size_of_row = w * sizeof(ColoredCell);
@@ -73,19 +75,20 @@ bool CellBuffer::CopyArea(Rect<u32> src, Rect<u32> dest) {
     return false;
 
   for (u32 y = 0; y < h; y++)
-    dirty_mask_.set(dest.left + buf_w * (dest.top + y), w, 1);
+    dirty_mask_.set(dest.left + width_ * (dest.top + y), w, 1);
 
   if (src.top > dest.top) {
     // Copy goes from top to bottom
     for (u32 y = 0; y < h; y++) {
-      std::memmove(base + dest.left + buf_w * (dest.top + y),
-                   base + src.left + buf_w * (src.top + y), size_of_row);
+      std::memmove(base + dest.left + pitch_ * (dest.top + y),
+                   base + src.left + pitch_ * (src.top + y), size_of_row);
     }
   } else {
     // Copy goes from bottom to top
     for (u32 y = 0; y < h; y++)
-      std::memmove(base + dest.left + buf_w * (dest.bottom - y - 1),
-                   base + src.left + buf_w * (src.bottom - y - 1), size_of_row);
+      std::memmove(base + dest.left + pitch_ * (dest.bottom - y - 1),
+                   base + src.left + pitch_ * (src.bottom - y - 1),
+                   size_of_row);
   }
 
   return true;
@@ -96,7 +99,7 @@ bool CellBuffer::FillLine(u32 left, u32 right, u32 y, ColoredCell value) {
   if (left > right) return false;
   if (y >= VisibleHeight()) return false;
 
-  size_t offset = width_ * (y + ScrollInCells());
+  size_t offset = pitch_ * (y + ScrollInCells());
 
   ColoredCell *base = data_.data() + offset;
 
@@ -117,16 +120,14 @@ bool CellBuffer::FillArea(Rect<u32> area, ColoredCell value) {
 
   if (!buf_rect.IsValid()) return false;
 
-  u32 buf_w = Width();
-
-  size_t offset = width_ * ScrollInCells();
+  size_t offset = pitch_ * ScrollInCells();
 
   ColoredCell *base = data_.data() + offset;
 
   for (u32 y = area.top; y < area.bottom; y++) {
-    for (u32 x = area.left; x < area.right; x++) base[x + buf_w * y] = value;
+    for (u32 x = area.left; x < area.right; x++) base[x + pitch_ * y] = value;
 
-    dirty_mask_.set(area.left + buf_w * y, area.right - area.left, 1);
+    dirty_mask_.set(area.left + width_ * y, area.right - area.left, 1);
   }
 
   return true;
@@ -141,12 +142,12 @@ void CellBuffer::ProcessUpdates(
   u32 scroll = UserScrollInCells();
 
   while (updated != boost::dynamic_bitset<>::npos) {
-    x = updated % Width();
-    y = updated / Width();
+    x = updated % width_;
+    y = updated / width_;
 
     if (y + scroll >= height_) break;
 
-    if (const auto &cell = data_.at(updated + scroll * Width());
+    if (const auto &cell = data_.at(x + y * pitch_ + scroll * pitch_);
         cell.displayed_code)
       func(x, y, cell);
 
@@ -157,9 +158,46 @@ void CellBuffer::ProcessUpdates(
 }
 
 void CellBuffer::EnumerateNonEmptyCells(std::function<bool(u32)> func) {
-  for (u32 i = UserScrollInCells() * Width(), j = VisibleHeight() * Width(),
-           k = 0;
-       k < j; k++)
-    if (data_[i + k].displayed_code) func(k);
+  for (u32 i = UserScrollInCells(), j = VisibleHeight(), k = 0; k < j; k++)
+    for (u32 x = 0; x < Width(); x++)
+      if (data_.at((i + k) * pitch_ + x).displayed_code) func(k * width_ + x);
+}
+
+std::pair<i32, i32> CellBuffer::Resize(u32 width, u32 height) {
+  if (width == width_ && height == height_) return {0, 0};
+
+  if (width == 0 || height == 0)
+    throw std::runtime_error("Invalid width or height when resizing");
+
+  u32 old_p = pitch_;
+  i32 delta_w = width - width_;
+  i32 delta_vh = height - visible_height_;
+
+  width_ = width;
+
+  if (delta_vh > 0 && HistorySizeInCells() == ScrollInCells())
+    height_ += delta_vh;
+
+  visible_height_ = height;
+
+  ScrollByNCells(-delta_vh, false);
+
+  if (width_ > pitch_) pitch_ = ExpGrowSize(width_);
+
+  data_.resize(pitch_ * height_);
+  dirty_mask_.resize(width_ * visible_height_);
+
+  if (width_ > pitch_) {
+    for (u32 h = 0; h < height_; h++) {
+      u32 y = height_ - 1 - h;
+
+      std::memmove(data_.data() + y * pitch_, data_.data() + y * old_p,
+                   width_ * sizeof(ColoredCell));
+    }
+  }
+
+  MarkAllAsDirty();
+
+  return {delta_w, delta_vh};
 }
 }  // namespace bitty

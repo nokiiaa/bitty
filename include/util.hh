@@ -1,6 +1,7 @@
 #ifndef __BITTY_UTIL_HH__
 #define __BITTY_UTIL_HH__
 
+#include <bits/sat_arith.h>
 #include <cstdint>
 #include <iostream>
 #include <limits>
@@ -78,9 +79,18 @@ inline i32 CeilFrom1616(i32 pos) { return (pos + 65536 - 1) / 65536; }
 inline i32 RoundFrom1616(i32 pos) { return (pos + 32768 - 1) / 65536; }
 inline i32 FloorFrom1616(i32 pos) { return pos / 65536; }
 
-template<typename T>
+template <typename T>
+  requires(std::is_integral_v<T>)
 inline T CeilDiv(T a, T b) {
   return (a + b - 1) / b;
+}
+
+template <typename T>
+  requires(std::is_integral_v<T>)
+inline T ExpGrowSize(T x) {
+  T y{x};
+  while (y & y - 1) y &= y - 1;
+  return std::add_sat(y ^ x ? std::mul_sat(y, T(2)) : y, T(1));
 }
 
 template <typename T, typename U>
@@ -89,7 +99,6 @@ inline T EuclideanMod(T a, U b) {
   T r = a % b;
   return r + T((r < 0) * b);
 }
-
 
 template <typename T>
 class ScopeGuard {

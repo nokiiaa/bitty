@@ -91,7 +91,14 @@ void Terminal::SetWindowSize(uint32_t width, uint32_t height) {
   w.ws_col = width;
   w.ws_row = height;
   ioctl(pt_master_no_, TIOCSWINSZ, &w);
-  buf_->Resize(width, height);
+
+  auto [delta_w, delta_vh] = buf_->Resize(width, height);
+  cursor_y_ = std::min(cursor_y_, int(height - 1));
+  cursor_x_ = std::min(cursor_x_, int(width - 1));
+  scroll_area_.right += delta_w;
+  scroll_area_.bottom += delta_vh;
+
+  if (alternate_buf_) alternate_buf_->Resize(width, height);
 }
 
 void Terminal::WriteToPty(std::vector<char> &&bytes) {

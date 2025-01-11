@@ -19,6 +19,7 @@ class ConfigListener {
 
 class Config {
   nlohmann::json json_;
+  std::string default_shell_;
   mutable std::mutex mutex_;
 
   std::list<ConfigListener *> listeners_;
@@ -68,6 +69,16 @@ class Config {
       opacity = 1.0;
 
     return std::clamp(opacity, 0., 1.);
+  }
+
+  inline std::string ShellPath() const {
+    std::unique_lock lock{mutex_};
+
+    if (auto ent = json_.find("shell");
+        ent != json_.end() && ent->is_string())
+       return *ent;
+    else
+      return default_shell_;
   }
 
   inline double CalcPixelsPerPt() const { return 96.0 / 72.0; }

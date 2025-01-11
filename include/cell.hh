@@ -16,7 +16,6 @@ enum CellFlags : uint16_t {
 };
 
 union Color {
-  // TODO: probably make this not little-endian-specific.
   struct {
     uint32_t a : 8;
     uint32_t r : 8;

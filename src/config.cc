@@ -1,5 +1,7 @@
 #include "config.hh"
 
+#include <pwd.h>
+
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
@@ -57,6 +59,11 @@ bool Config::Reload() {
   }
 
   for (auto listener : listeners_) listener->OnConfigReload();
+
+  uid_t uid = getuid();
+
+  struct passwd *pw = getpwuid(uid);
+  default_shell_ = pw ? pw->pw_shell : "/bin/sh";
 
   return true;
 }

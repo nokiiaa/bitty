@@ -3,7 +3,6 @@
 
 #include <boost/container_hash/hash.hpp>
 #include <boost/dynamic_bitset/dynamic_bitset.hpp>
-#include <cstdint>
 #include <functional>
 #include <glm/mat4x4.hpp>
 #include <optional>
@@ -19,10 +18,10 @@ namespace bitty {
 
 class CellBuffer {
   std::vector<ColoredCell> data_;
-  u32 width_, height_, visible_height_;
+  u32 width_, pitch_, height_, visible_height_;
   boost::dynamic_bitset<> dirty_mask_;
 
-  glm::mat4 transform_;
+  glm::dmat4 transform_;
 
   i32 user_scroll_in_pixels_{0};
   i32 scroll_in_cells_{0};
@@ -35,11 +34,12 @@ class CellBuffer {
  public:
   inline CellBuffer(u32 width, u32 height, u32 visible_height)
       : width_(width),
+        pitch_(ExpGrowSize(width)),
         height_(height),
         visible_height_(visible_height),
         transform_(1) {
-    data_ = std::vector<ColoredCell>(width_ * height_);
-    dirty_mask_ = boost::dynamic_bitset{data_.size()};
+    data_ = std::vector<ColoredCell>(pitch_ * height_);
+    dirty_mask_ = boost::dynamic_bitset<>(width_ * visible_height);
   }
 
   inline u32 UserScrollInCells() const {
@@ -52,15 +52,15 @@ class CellBuffer {
                                         bool use_user_scroll = false) const {
     y += use_user_scroll ? UserScrollInCells() : ScrollInCells();
 
-    return x < width_ && y < height_ ? std::optional{data_[x + width_ * y]}
+    return x < width_ && y < height_ ? std::optional{data_[x + pitch_ * y]}
                                      : std::nullopt;
   }
 
   inline bool Set(u32 x, u32 y, ColoredCell chr, bool use_user_scroll = false) {
     u32 Y = y + (use_user_scroll ? UserScrollInCells() : ScrollInCells());
 
-    if (x < width_ && y < height_) {
-      data_[x + width_ * Y] = chr;
+    if (x < width_ && y < visible_height_ && Y < height_) {
+      data_.at(x + pitch_ * Y) = chr;
       dirty_mask_[x + width_ * y] = 1;
       return true;
     }
@@ -68,9 +68,11 @@ class CellBuffer {
     return false;
   }
 
-  inline glm::mat4 GetTransform() const { return transform_; }
+  void MarkAllAsDirty();
 
-  inline void SetTransform(glm::mat4 transform) { transform_ = transform; }
+  inline glm::dmat4 GetTransform() const { return transform_; }
+
+  inline void SetTransform(glm::dmat4 transform) { transform_ = transform; }
 
   void ProcessUpdates(std::function<bool(u32, u32, ColoredCell)> func);
   void EnumerateNonEmptyCells(std::function<bool(u32)> func);
@@ -100,10 +102,7 @@ class CellBuffer {
   bool FillLine(u32 left, u32 right, u32 y, ColoredCell value);
   bool FillArea(Rect<u32> area, ColoredCell value);
 
-  inline void Resize(u32 width, u32 height) {
-    if (width_ != width || height_ != height)
-      throw std::runtime_error("Resize unimplemented");
-  }
+  std::pair<i32, i32> Resize(u32 width, u32 height);
 };
 }  // namespace bitty
 
