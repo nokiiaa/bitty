@@ -5,6 +5,7 @@
 
 #include "cell_buffer.hh"
 #include "events.hh"
+#include "font_renderer.hh"
 #include "term_renderer.hh"
 
 #define GLFW_INCLUDE_NONE
@@ -105,8 +106,16 @@ int main() {
   glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
   glfwWindowHint(GLFW_TRANSPARENT_FRAMEBUFFER, 1);
 
-  window = glfwCreateWindow(640, 480, "bitty", NULL, NULL);
-  
+  const GLFWvidmode *mode = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+  auto [scr_w, scr_h] = std::tuple{mode->width, mode->height};
+
+  auto [win_w, win_h] = std::tuple{2 * scr_w / 3, 2 * scr_h / 3};
+
+  window = glfwCreateWindow(win_w, win_h, "bitty", NULL, NULL);
+
+  glfwSetWindowPos(window, scr_w / 2 - win_w / 2, scr_h / 2 - win_h / 2);
+
   if (!window) {
     glfwTerminate();
     exit(EXIT_FAILURE);
@@ -130,15 +139,19 @@ int main() {
   TermRenderer renderer;
   bool needs_redraw = true;
 
-  int pty_id = Terminal::Create(Config::Get().ShellPath());
+  int width, height;
+
+  glfwGetFramebufferSize(window, &width, &height);
+
+  int pty_id =
+      Terminal::Create(Config::Get().ShellPath(), width / GlobalCellWidthPx(),
+                       height / GlobalCellHeightPx());
 
   std::shared_ptr terminal{Terminal::Get(pty_id).value_or(nullptr)};
 
   bool set_win_size = true;
 
   while (!glfwWindowShouldClose(window)) {
-    int width, height;
-
     if (needs_redraw) {
       glfwGetFramebufferSize(window, &width, &height);
 

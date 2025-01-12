@@ -14,8 +14,8 @@
 namespace bitty {
 std::unordered_map<int, std::shared_ptr<Terminal>> Terminal::terminals_;
 
-void Terminal::MakeBuffer() {
-  auto [w, h] = std::tuple{140u, 35u};
+void Terminal::MakeBuffer(u32 init_w, u32 init_h) {
+  auto [w, h] = std::tuple{init_w, init_h};
   default_fg_ = Color(255, 255, 255, 255);
   default_bg_ = Color(255, 0, 0, 0);
   current_fg_ = default_fg_;
@@ -231,9 +231,9 @@ void Terminal::HandleMouseButton(const EventMouseButton& event) {
   }
 }
 
-int Terminal::Create(const std::string& shell_path) {
+int Terminal::Create(const std::string& shell_path, u32 init_w, u32 init_h) {
   try {
-    auto term = std::shared_ptr<Terminal>(new Terminal(shell_path));
+    auto term = std::shared_ptr<Terminal>(new Terminal(shell_path, init_w, init_h));
 
     int id = term->pt_master_no_;
 

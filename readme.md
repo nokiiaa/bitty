@@ -23,13 +23,13 @@ I implement ANSI escape codes as I need them. Around 33 parsing rules have been 
 
 # Build
 1. Make sure you have `vcpkg` installed.
-2. Proceed to build using CMake.
+2. Proceed to build using CMake: `cmake -Bbuild . --preset vcpkg; cmake --build build`
 
 The project is using a clang-based toolchain by default.
 You may opt out of this and use your compiler of choice by editing `CMakePresets.json` and removing the relevant definitions.
 
 # Configuration
-Searches for a config in `~/.bitty.json`.
+Searches for a config in `$XDG_CONFIG/.bitty.json` or `$HOME/.config/.bitty.json`. If neither is found, it searches for a config in the working directory. Otherwise, it adopts the default config.
 
 Example configuration:
 

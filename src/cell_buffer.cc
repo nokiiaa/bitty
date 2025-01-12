@@ -13,10 +13,7 @@ bool CellBuffer::UserScrolledUp() const {
   return UserScrollInCells() != ScrollInCells();
 }
 
-  void CellBuffer::MarkAllAsDirty() {
-  dirty_mask_.set();
-
-  }
+void CellBuffer::MarkAllAsDirty() { dirty_mask_.set(); }
 
 void CellBuffer::UserScrollByNPixels(i32 n) {
   user_scroll_in_pixels_ =
@@ -169,6 +166,7 @@ std::pair<i32, i32> CellBuffer::Resize(u32 width, u32 height) {
   if (width == 0 || height == 0)
     throw std::runtime_error("Invalid width or height when resizing");
 
+  i32 old_width = width_;
   u32 old_p = pitch_;
   i32 delta_w = width - width_;
   i32 delta_vh = height - visible_height_;
@@ -180,20 +178,28 @@ std::pair<i32, i32> CellBuffer::Resize(u32 width, u32 height) {
 
   visible_height_ = height;
 
-  ScrollByNCells(-delta_vh, false);
+  if (delta_vh < 0) ScrollByNCells(-delta_vh, false);
 
-  if (width_ > pitch_) pitch_ = ExpGrowSize(width_);
+  bool grow_pitch = false;
+
+  if (width_ > pitch_) pitch_ = ExpGrowSize(width_), grow_pitch = true;
 
   data_.resize(pitch_ * height_);
   dirty_mask_.resize(width_ * visible_height_);
 
-  if (width_ > pitch_) {
+  if (grow_pitch) {
     for (u32 h = 0; h < height_; h++) {
       u32 y = height_ - 1 - h;
 
       std::memmove(data_.data() + y * pitch_, data_.data() + y * old_p,
                    width_ * sizeof(ColoredCell));
     }
+  }
+
+  if (delta_w > 0) {
+    for (u32 h = 0; h < height_; h++)
+      std::memset(data_.data() + old_width + h * pitch_, 0,
+                  (pitch_ - old_width) * sizeof(ColoredCell));
   }
 
   MarkAllAsDirty();

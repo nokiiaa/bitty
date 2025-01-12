@@ -16,7 +16,7 @@
 #include "util.hh"
 
 namespace bitty {
-Terminal::Terminal(const std::string &shell_path) {
+Terminal::Terminal(const std::string &shell_path, u32 init_w, u32 init_h) {
   char *slave_device;
 
   pt_master_no_ = posix_openpt(O_RDWR);
@@ -25,7 +25,7 @@ Terminal::Terminal(const std::string &shell_path) {
       unlockpt(pt_master_no_) == -1 || !(slave_device = ptsname(pt_master_no_)))
     throw std::runtime_error("Failed to open master pty");
 
-  MakeBuffer();
+  MakeBuffer(init_w, init_h);
 
   event_fd_ = eventfd(0, 0);
   if (event_fd_ == -1) throw std::runtime_error("Failed to create eventfd");

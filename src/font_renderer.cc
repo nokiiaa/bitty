@@ -27,10 +27,9 @@ FontRenderer::FontRenderer() {
 void FontRenderer::OnConfigReload() {
   std::unique_lock lock{mutex_};
 
-  // FT_Error err{FT_Library_SetLcdFilter(library_, FT_LCD_FILTER_DEFAULT)};
   const auto& conf = Config::Get();
 
-  std::string font_family = conf.FontFamily().value_or("Fira Code");
+  std::string font_family = conf.FontFamily().value_or("monospace");
 
   double font_pt = conf.FontSize() * conf.CalcPixelsPerPt() * 1.25;
 

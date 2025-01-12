@@ -20,10 +20,17 @@ Config &Config::Get() {
 }
 
 std::filesystem::path GetConfigDirectory() {
+  if (const char *xdg_config = std::getenv("XDG_CONFIG")) {
+    try {
+      return std::filesystem::path(xdg_config);
+    } catch (...) {
+    }
+  }
+
   for (const auto &var : {"HOME", "USERPROFILE"}) {
     if (const char *path = std::getenv(var)) {
       try {
-        return std::filesystem::path(path);
+        return std::filesystem::path(path) / ".config";
       } catch (...) {
       }
     }
@@ -33,7 +40,7 @@ std::filesystem::path GetConfigDirectory() {
     if (const char *home_path = std::getenv("HOMEPATH")) {
       try {
         return std::filesystem::path(home_drive) /
-               std::filesystem::path(home_path);
+               std::filesystem::path(home_path) / ".config";
       } catch (...) {
       }
     }

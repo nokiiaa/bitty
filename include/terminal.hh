@@ -194,7 +194,7 @@ class Terminal {
   void ReportUnhandledSequence();
   void ReportUnparsedSequence();
 
-  void MakeBuffer();
+  void MakeBuffer(u32 init_w, u32 init_h);
   void SetIndexedColor(u32 fg_or_bg, u32 color);
   void SetRgbColor(u32 fg_or_bg, u32 r, u32 g, u32 b);
   void SetMode(u32 mode, bool flag);
@@ -203,7 +203,7 @@ class Terminal {
   void SetPrivateMode(u32 mode, bool flag);
   void HandleIndividualModifierForMSequence(u32 mod);
 
-  Terminal(const std::string& shell_path);
+  Terminal(const std::string& shell_path, u32 init_w, u32 init_h);
   Terminal(const Terminal& term) = delete;
   void operator=(const Terminal& term) = delete;
 
@@ -274,7 +274,7 @@ class Terminal {
 
   void SetWindowSize(u32 width, u32 height);
   inline int Id() const { return id_; }
-  static int Create(const std::string& shell_path);
+  static int Create(const std::string& shell_path, u32 init_w, u32 init_h);
   static std::optional<std::shared_ptr<Terminal>> Get(int id);
 
   inline std::shared_ptr<CellBuffer> CurrentBuffer() { return buf_; }
