@@ -75,7 +75,7 @@ bool BlurWindow(GLFWwindow *window, int blur_radius) {
   Window window_handle = glfwGetX11Window(window);
 
   auto _KDE_NET_WM_BLUR_BEHIND_REGION =
-      XInternAtom(display, "_KDE_NET_WM_BLUR_BEHIND_REGION", False);
+      XInternAtom(display, "_KDE_NET_WM_BLUR_BEHIND_REGION", True);
 
   if (_KDE_NET_WM_BLUR_BEHIND_REGION != None) {
     uint32_t data = 0;
@@ -128,6 +128,7 @@ int main() {
   glfwSetCharCallback(window, callbacks::CharReceived);
   glfwSetWindowSizeCallback(window, callbacks::WindowSizeChanged);
   glfwSetWindowPosCallback(window, callbacks::WindowPosChanged);
+  
   BlurWindow(window, 2);
 
   glfwMakeContextCurrent(window);

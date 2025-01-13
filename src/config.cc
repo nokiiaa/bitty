@@ -20,7 +20,7 @@ Config &Config::Get() {
 }
 
 std::filesystem::path GetConfigDirectory() {
-  if (const char *xdg_config = std::getenv("XDG_CONFIG")) {
+  if (const char *xdg_config = std::getenv("XDG_CONFIG_HOME")) {
     try {
       return std::filesystem::path(xdg_config);
     } catch (...) {
@@ -50,9 +50,13 @@ std::filesystem::path GetConfigDirectory() {
 }
 
 bool Config::Reload() {
+  uid_t uid = getuid();
+  struct passwd *pw = getpwuid(uid);
+  default_shell_ = pw ? pw->pw_shell : "/bin/sh";
+
   std::unique_lock lock{mutex_};
 
-  auto path = GetConfigDirectory() / ".bitty.json";
+  auto path = GetConfigDirectory() / "bitty.json";
 
   if (!std::filesystem::exists(path)) return false;
 
@@ -66,11 +70,6 @@ bool Config::Reload() {
   }
 
   for (auto listener : listeners_) listener->OnConfigReload();
-
-  uid_t uid = getuid();
-
-  struct passwd *pw = getpwuid(uid);
-  default_shell_ = pw ? pw->pw_shell : "/bin/sh";
 
   return true;
 }

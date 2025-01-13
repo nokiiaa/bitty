@@ -55,13 +55,14 @@ class Config {
     if (auto ent = json_.find("font_size");
         ent != json_.end() && ent->is_number())
       return ent->template get<double>();
-    return 14.0;
+    return 13.0;
   }
 
   inline double Opacity() const {
     std::unique_lock lock{mutex_};
 
-    double opacity = 0;
+    double opacity;
+
     if (auto ent = json_.find("opacity");
         ent != json_.end() && ent->is_number())
       opacity = ent->template get<double>();
