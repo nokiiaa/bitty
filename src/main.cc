@@ -57,6 +57,10 @@ static void WindowSizeChanged(GLFWwindow *window, int new_width,
 
 static void WindowPosChanged(GLFWwindow *, int, int) {}
 
+static void WindowRefreshed(GLFWwindow *) {
+  EventQueue::Get().Enqueue(EventWindowRefreshed{});
+}
+
 }  // namespace bitty::callbacks
 
 using namespace bitty;
@@ -128,7 +132,8 @@ int main() {
   glfwSetCharCallback(window, callbacks::CharReceived);
   glfwSetWindowSizeCallback(window, callbacks::WindowSizeChanged);
   glfwSetWindowPosCallback(window, callbacks::WindowPosChanged);
-  
+  glfwSetWindowRefreshCallback(window, callbacks::WindowRefreshed);
+
   BlurWindow(window, 2);
 
   glfwMakeContextCurrent(window);
@@ -287,7 +292,9 @@ int main() {
           terminal->SetWindowSize(nw, nh);
           glfwSetWindowSize(window, nw * cw, nh * ch);
           needs_redraw = true;
-        }});
+        },
+
+        [&](EventWindowRefreshed) mutable { needs_redraw = true; }});
   }
 
   glfwDestroyWindow(window);

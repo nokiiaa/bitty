@@ -31,6 +31,8 @@ struct EventWindowResized {
   int new_width, new_height;
 };
 
+struct EventWindowRefreshed {};
+
 struct EventDataFromTty {
   int terminal_id;
   std::unique_ptr<std::byte[]> bytes;
@@ -39,7 +41,7 @@ struct EventDataFromTty {
 
 using Event = std::variant<EventMouseScroll, EventMouseButton, EventMousePos,
                            EventKeyInput, EventCharInput, EventWindowResized,
-                           EventDataFromTty>;
+                           EventDataFromTty, EventWindowRefreshed>;
 
 class EventQueue {
   std::mutex mutex_;
